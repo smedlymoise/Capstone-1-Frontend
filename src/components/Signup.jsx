@@ -4,9 +4,9 @@ import axios from "axios";
 import "./AuthStyles.css";
 import { API_URL } from "../shared";
 
-const Signup = ({ setUser }) => {
+const Signup = ({ setUser, setMessage, setError }) => {
   const [formData, setFormData] = useState({
-    username: "",
+    email: "",
     password: "",
     confirmPassword: "",
   });
@@ -17,10 +17,10 @@ const Signup = ({ setUser }) => {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.username) {
-      newErrors.username = "Username is required";
-    } else if (formData.username.length < 3 || formData.username.length > 20) {
-      newErrors.username = "Username must be between 3 and 20 characters";
+    if (!formData.email) {
+      newErrors.email = "Email is required";
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = "Enter a valid email address";
     }
 
     if (!formData.password) {
@@ -29,9 +29,7 @@ const Signup = ({ setUser }) => {
       newErrors.password = "Password must be at least 6 characters";
     }
 
-    if (!formData.confirmPassword) {
-      newErrors.confirmPassword = "Please confirm your password";
-    } else if (formData.password !== formData.confirmPassword) {
+    if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = "Passwords do not match";
     }
 
@@ -41,29 +39,31 @@ const Signup = ({ setUser }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setIsLoading(true);
-    try {
-      const response = await axios.post(
-        `${API_URL}/auth/signup`,
-        {
-          username: formData.username,
-          password: formData.password,
-        },
-        { withCredentials: true }
-      );
+    setError("");
+    setMessage("");
 
-      setUser(response.data.user);
+    try {
+      const response = await axios.post(`${API_URL}/auth/signup`, {
+        email: formData.email,
+        password: formData.password,
+      }, { withCredentials: true });
+
+      const { token, user } = response.data;
+
+      localStorage.setItem("mockAuthToken", token);
+      localStorage.setItem("mockUser", JSON.stringify(user));
+
+      setUser(user);
+      setMessage("Account created successfully!");
       navigate("/");
-    } catch (error) {
-      if (error.response?.data?.error) {
-        setErrors({ general: error.response.data.error });
+    } catch (err) {
+      if (err.response?.data?.error) {
+        setErrors({ general: err.response.data.error });
       } else {
-        setErrors({ general: "An error occurred during signup" });
+        setErrors({ general: "Signup failed" });
       }
     } finally {
       setIsLoading(false);
@@ -72,17 +72,9 @@ const Signup = ({ setUser }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-
-    // Clear error when user starts typing
+    setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) {
-      setErrors((prev) => ({
-        ...prev,
-        [name]: "",
-      }));
+      setErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
 
@@ -90,25 +82,20 @@ const Signup = ({ setUser }) => {
     <div className="auth-container">
       <div className="auth-form">
         <h2>Sign Up</h2>
-
-        {errors.general && (
-          <div className="error-message">{errors.general}</div>
-        )}
+        {errors.general && <div className="error-message">{errors.general}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="username">Username:</label>
+            <label htmlFor="email">Email:</label>
             <input
-              type="text"
-              id="username"
-              name="username"
-              value={formData.username}
+              type="email"
+              id="email"
+              name="email"
+              value={formData.email}
               onChange={handleChange}
-              className={errors.username ? "error" : ""}
+              className={errors.email ? "error" : ""}
             />
-            {errors.username && (
-              <span className="error-text">{errors.username}</span>
-            )}
+            {errors.email && <span className="error-text">{errors.email}</span>}
           </div>
 
           <div className="form-group">
@@ -121,9 +108,7 @@ const Signup = ({ setUser }) => {
               onChange={handleChange}
               className={errors.password ? "error" : ""}
             />
-            {errors.password && (
-              <span className="error-text">{errors.password}</span>
-            )}
+            {errors.password && <span className="error-text">{errors.password}</span>}
           </div>
 
           <div className="form-group">
@@ -136,9 +121,7 @@ const Signup = ({ setUser }) => {
               onChange={handleChange}
               className={errors.confirmPassword ? "error" : ""}
             />
-            {errors.confirmPassword && (
-              <span className="error-text">{errors.confirmPassword}</span>
-            )}
+            {errors.confirmPassword && <span className="error-text">{errors.confirmPassword}</span>}
           </div>
 
           <button type="submit" disabled={isLoading}>
