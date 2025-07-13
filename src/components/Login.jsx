@@ -4,50 +4,60 @@ import axios from "axios";
 import { API_URL } from "../shared";
 import "./AuthStyles.css";
 
-const Login = ({ setUser }) => {
-  const [formData, setFormData] = useState({
-    username: "",
-    password: "",
+
+const Login = ({ setUser, setMessage, setError}) => {
+  const [ formData, setFormData] = useState({
+    email: " ",
+    password: " ",
   });
-  const [errors, setErrors] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
+
+  const [ errors, setErrors ] = useState({});
+  const [islOading, setIsLoading] =useState(false);
   const navigate = useNavigate();
 
-  const validateForm = () => {
-    const newErrors = {};
+  const validators = () => {
+    const newErros = {};
 
-    if (!formData.username) {
-      newErrors.username = "Username is required";
-    } else if (formData.username.length < 3 || formData.username.length > 20) {
-      newErrors.username = "Username must be between 3 and 20 characters";
+    if(!formData.email) {
+      newErros.emnail = " Email is required";
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErros.email = " Enter a valide email";
     }
 
-    if (!formData.password) {
-      newErrors.password = "Password is required";
-    } else if (formData.password.length < 6) {
-      newErrors.password = "Password must be at least 6 characters";
+    if(!formData.password) {
+      newErros.password = " Password is required";
+    } else if( formData.password.length < 5){
+      newErros.password - "Password must be at least 5 characters"
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setErrors(newErros);
+    return Object.keys(newErros).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
+    if(!validators()) return;
 
     setIsLoading(true);
+    setError("");
+    setMessage("");
+    
     try {
       const response = await axios.post(`${API_URL}/auth/login`, formData, {
         withCredentials: true,
       });
 
-      setUser(response.data.user);
+      const { token, user } = response.data;
+
+      // Save token and user to localStorage
+      localStorage.setItem("mockAuthToken", token);
+      localStorage.setItem("mockUser", JSON.stringify(user));
+
+      setUser(user);
+      setMessage("Login successful!");
       navigate("/");
     } catch (error) {
+      console.error("Login failed:", error);
       if (error.response?.data?.error) {
         setErrors({ general: error.response.data.error });
       } else {
@@ -56,21 +66,14 @@ const Login = ({ setUser }) => {
     } finally {
       setIsLoading(false);
     }
-  };
 
-  const handleChange = (e) => {
+      const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
 
-    // Clear error when user starts typing
+    // Clear field-specific error
     if (errors[name]) {
-      setErrors((prev) => ({
-        ...prev,
-        [name]: "",
-      }));
+      setErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
 
@@ -79,24 +82,20 @@ const Login = ({ setUser }) => {
       <div className="auth-form">
         <h2>Login</h2>
 
-        {errors.general && (
-          <div className="error-message">{errors.general}</div>
-        )}
+        {errors.general && <div className="error-message">{errors.general}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="username">Username:</label>
+            <label htmlFor="email">Email:</label>
             <input
-              type="text"
-              id="username"
-              name="username"
-              value={formData.username}
+              type="email"
+              id="email"
+              name="email"
+              value={formData.email}
               onChange={handleChange}
-              className={errors.username ? "error" : ""}
+              className={errors.email ? "error" : ""}
             />
-            {errors.username && (
-              <span className="error-text">{errors.username}</span>
-            )}
+            {errors.email && <span className="error-text">{errors.email}</span>}
           </div>
 
           <div className="form-group">
@@ -109,9 +108,7 @@ const Login = ({ setUser }) => {
               onChange={handleChange}
               className={errors.password ? "error" : ""}
             />
-            {errors.password && (
-              <span className="error-text">{errors.password}</span>
-            )}
+            {errors.password && <span className="error-text">{errors.password}</span>}
           </div>
 
           <button type="submit" disabled={isLoading}>
@@ -125,6 +122,9 @@ const Login = ({ setUser }) => {
       </div>
     </div>
   );
-};
+
+
+  };
+}
 
 export default Login;
